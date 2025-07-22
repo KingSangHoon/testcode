@@ -1,54 +1,58 @@
 package com.test;
 
-import java.io.OutputStream;
-import java.io.InputStream;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.io.OutputStream;
+import java.util.UUID;
 
-public class PaymentApiClient {
+public class PaymentService {
 
-    private static final String API_URL = "https://payment.company.com/api/test";
+    private static final String PAYMENT_GATEWAY_URL = "https://payment.company.com/api/v1/process";
 
     /**
-     * 결제 API 호출 메서드
-     *
-     * @param orderId 주문 ID
-     * @param amount 금액 (예: 1000)
-     * @param currency 통화 (예: "KRW")
-     * @param description 설명
-     * @return 응답 문자열
-     * @throws Exception 예외 발생 시
+     * 결제 처리 요청
      */
-    public String sendPaymentRequest(String orderId, int amount, String currency, String description) throws Exception {
-        URL url = new URL(API_URL);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+    public boolean processPayment(String cardNumber, int amountWon) {
+        try {
+            URL url = new URL(PAYMENT_GATEWAY_URL);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setDoOutput(true);
 
-        conn.setRequestMethod("POST");
-        conn.setRequestProperty("Content-Type", "application/json");
-        conn.setDoOutput(true);
+            // 거래 ID 생성 (멱등성 키로 사용)
+            String transactionId = UUID.randomUUID().toString();
 
-        String jsonInputString = String.format(
-                "{\"orderId\":\"%s\",\"amount\":%d,\"currency\":\"%s\",\"description\":\"%s\"}",
-                orderId, amount, currency, description
-        );
+            // JSON 본문 구성
+            String jsonPayload = String.format(
+                "{" +
+                "\"cardNumber\":\"%s\"," +
+                "\"amount\":%d," +
+                "\"transactionId\":\"%s\"" +
+                "}",
+                maskCardNumber(cardNumber), amountWon, transactionId
+            );
 
-        try (OutputStream os = conn.getOutputStream()) {
-            byte[] input = jsonInputString.getBytes("utf-8");
-            os.write(input, 0, input.length);
-        }
-
-        int code = conn.getResponseCode();
-        InputStream is = (code >= 200 && code < 300) ? conn.getInputStream() : conn.getErrorStream();
-
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(is, "utf-8"))) {
-            StringBuilder response = new StringBuilder();
-            String responseLine;
-            while ((responseLine = br.readLine()) != null) {
-                response.append(responseLine.trim());
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(jsonPayload.getBytes());
+                os.flush();
             }
-            return response.toString();
+
+            int responseCode = conn.getResponseCode();
+            return responseCode == 200;
+
+        } catch (Exception e) {
+            System.err.println("결제 처리 실패: " + e.getMessage());
+            return false;
         }
+    }
+
+    /**
+     * 카드 번호 마스킹 처리 (보안 이슈 방지)
+     */
+    private String maskCardNumber(String cardNumber) {
+        if (cardNumber.length() < 4) return "****";
+        return "**** **** **** " + cardNumber.substring(cardNumber.length() - 4);
     }
 }

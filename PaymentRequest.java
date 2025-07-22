@@ -1,3 +1,5 @@
+package com.test;
+
 import java.io.OutputStream;
 import java.io.InputStream;
 import java.io.BufferedReader;
@@ -7,7 +9,7 @@ import java.net.URL;
 
 public class PaymentApiClient {
 
-    private static final String API_URL = "https://payment.company.com/api/test"; // 실제 URL로 교체하세요
+    private static final String API_URL = "https://payment.company.com/api/test";
 
     /**
      * 결제 API 호출 메서드
